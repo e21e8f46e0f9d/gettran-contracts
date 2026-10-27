@@ -1,0 +1,28 @@
+[package]
+name = "gettran-contracts"
+description = "Gettran smart contracts for TON"
+version = "1.0.0"
+license = "MIT"
+
+[toolchain]
+acton = "1.1.0"
+
+[contracts.UsdtDepositVault]
+src = "contracts/usdt_deposit_vault/usdt_deposit_vault.tolk"
+depends = []
+
+[contracts.OfferEscrow]
+src = "contracts/offer_escrow/offer_escrow.tolk"
+depends = ["UsdtDepositVault"]
+
+[contracts.CertifiedOfferEscrow]
+src = "contracts/certified_offer_escrow/certified_offer_escrow.tolk"
+depends = ["UsdtDepositVault"]
+
+[fmt]
+width = 100
+
+[import-mappings]
+acton = ".acton"
+contracts = "contracts"
+gen = "gen"

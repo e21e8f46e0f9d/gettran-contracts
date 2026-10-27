@@ -1,0 +1,13 @@
+.acton/
+build/
+dist/
+gen/
+.env
+.env.*
+*.mnemonic
+wallets.toml
+global.wallets.toml
+global.libraries.toml
+.DS_Store
+.idea/
+.vscode/
