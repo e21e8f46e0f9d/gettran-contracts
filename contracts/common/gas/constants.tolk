@@ -2,7 +2,7 @@ import "types"
 
 // Резерв закрытого escrow нужен для позднего bounce и bounded automatic recovery. Это продуктовая политика
 // хранения, а не оценка compute gas.
-const MIN_TONS_FOR_STORAGE = ton("0.01")
+const MIN_TONS_FOR_STORAGE = grams("0.01")
 
 // Измерено на обоих runtime и округлено вверх. Certified-проверка подписи выполняется при binding,
 // а не в финальном settlement; на максимальном наборе обе реализации остаются ниже этой границы.

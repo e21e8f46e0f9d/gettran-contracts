@@ -17,14 +17,14 @@ fun sendCoins(recipient: address, amount: coins, comment: slice) {
 // Вызывается последним: все обязательства уже поставлены в action list, остаток над storage reserve
 // возвращается выбранному плательщику резерва. Маленькая сдача не должна откатить состоявшийся settlement.
 fun returnChange(recipient: address, storageReserve: coins = MIN_TONS_FOR_STORAGE) {
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         storageReserve,
         RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_AT_MOST,
     );
     val changeMessage = createMessage({
         bounce: BounceMode.NoBounce,
         dest: recipient,
-        value: ton("0"),
+        value: grams("0"),
         body: UnsafeBodyNoRef { forceInline: TextComment { text: GAS_REFUND_COMMENT } },
     });
     // SAFETY: reserve уже удержал storage minimum, а все обязательные actions поставлены раньше;
@@ -36,7 +36,7 @@ fun refundTon(recipient: address, comment: slice) {
     val tonRefundMessage = createMessage({
         bounce: BounceMode.NoBounce,
         dest: recipient,
-        value: ton("0"),
+        value: grams("0"),
         body: UnsafeBodyNoRef { forceInline: TextComment { text: comment } },
     });
     tonRefundMessage.send(

@@ -172,5 +172,5 @@ fun hasCertifiedExecutionDomain(signed: cell): bool {
         return false;
     }
     return body.loadUint(32) == CERTIFIED_EXECUTION_DOMAIN &&
-    body.loadUint(8) == CERTIFIED_EXECUTION_SCHEMA_VERSION;
+        body.loadUint(8) == CERTIFIED_EXECUTION_SCHEMA_VERSION;
 }

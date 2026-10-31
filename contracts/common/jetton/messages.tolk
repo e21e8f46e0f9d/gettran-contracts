@@ -26,7 +26,7 @@ struct (0x0f8a7ea5) JettonTransfer {
     transferRecipient: address
     sendExcessesTo: address?
     customPayload: cell? = null
-    forwardTonAmount: coins = ton("0")
+    forwardTonAmount: coins = grams("0")
     forwardPayload: RemainingBitsAndRefs
 }
 

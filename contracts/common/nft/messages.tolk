@@ -31,7 +31,7 @@ struct (0x5fcc3d14) NftTransfer {
     newOwner: address
     responseDestination: address
     customPayload: cell? = null
-    forwardAmount: coins = ton("0")
+    forwardAmount: coins = grams("0")
     forwardPayload: RemainingBitsAndRefs
 }
 

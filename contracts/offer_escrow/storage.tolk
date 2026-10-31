@@ -25,7 +25,7 @@ struct OfferEscrowTerms {
     parties: Cell<OfferEscrowParties>
     payment: Cell<PaymentTerms>?
     makerTonFee: coins
-    takerTonFee: coins = ton("0")
+    takerTonFee: coins = grams("0")
     config: Cell<EscrowConfig>
 }
 
@@ -49,7 +49,7 @@ struct OfferEscrowStorage {
     payoutQueryId: uint64
     closedAt: uint32 = 0
     lastUnexpectedNftRecoveryId: uint64 = 0
-    automaticRecoveryBudget: coins = ton("0")
+    automaticRecoveryBudget: coins = grams("0")
     settledTakerWallet: address? = null
     terms: Cell<OfferEscrowTerms>
     items: Cell<OfferEscrowItems>
@@ -141,7 +141,7 @@ fun OfferEscrowStorage.isClosed(self): bool {
 @inline
 fun OfferEscrowStatus.isClosed(self): bool {
     return self == OfferEscrowStatus.Settled || self == OfferEscrowStatus.Cancelled ||
-    self == OfferEscrowStatus.Expired;
+        self == OfferEscrowStatus.Expired;
 }
 
 fun OfferEscrowStorage.totalItemCount(self): int {
@@ -151,8 +151,8 @@ fun OfferEscrowStorage.totalItemCount(self): int {
 
 fun OfferEscrowStorage.requiredSettlementBalance(self, includeTakerPayment: bool): coins {
     val payment = self.terms.load().payment;
-    val hasJettonMessages = payment != null && payment!.load().asset == PaymentAsset.Usdt &&
-    (payment!.load().marketplaceFee > 0 || self.deposits.load().usdt.count > 0);
+    val hasJettonMessages = payment != null && payment.load().asset == PaymentAsset.Usdt &&
+        (payment.load().marketplaceFee > 0 || self.deposits.load().usdt.count > 0);
     val storageReserve = hasJettonMessages ? usdtRecoveryStorageReserve() : MIN_TONS_FOR_STORAGE;
     return self.requiredExecutionBalance(includeTakerPayment) + storageReserve;
 }
@@ -160,18 +160,18 @@ fun OfferEscrowStorage.requiredSettlementBalance(self, includeTakerPayment: bool
 fun OfferEscrowStorage.requiredExecutionBalance(self, includeTakerPayment: bool): coins {
     val terms = lazy self.terms.load();
     val paymentCell = terms.payment;
-    var makerTon = ton("0") as coins;
-    var takerTon = ton("0") as coins;
+    var makerTon = grams("0") as coins;
+    var takerTon = grams("0") as coins;
     var jettonMessages = 0;
     if (paymentCell != null) {
         val payment = lazy paymentCell.load();
         makerTon = payment.asset == PaymentAsset.Ton && payment.payer == OfferSide.Maker
             ? payment.amount
-            : (ton("0") as coins);
+            : (grams("0") as coins);
         takerTon = includeTakerPayment && payment.asset == PaymentAsset.Ton &&
-        payment.payer == OfferSide.Taker
+            payment.payer == OfferSide.Taker
             ? payment.amount
-            : (ton("0") as coins);
+            : (grams("0") as coins);
         jettonMessages = payment.asset == PaymentAsset.Usdt
             ? max(self.deposits.load().usdt.count, payment.marketplaceFee > 0 ? 2 : 1)
             : 0;
@@ -179,23 +179,23 @@ fun OfferEscrowStorage.requiredExecutionBalance(self, includeTakerPayment: bool)
     val itemCount = self.totalItemCount();
 
     return (makerTon + takerTon + terms.makerTonFee +
-    (includeTakerPayment ? terms.takerTonFee : (ton("0") as coins)) +
-    NFT_TRANSFER_VALUE * itemCount +
-    automaticNftDeliveryRetryReserve(itemCount) +
-    USDT_DEPOSIT_ASSIGN_VALUE * jettonMessages +
-    automaticUsdtSettlementRetryReserve(
-        jettonMessages,
-        self.deposits.load().usdt.termsPayloadBits,
-        self.deposits.load().usdt.termsPayloadCells,
-    ) +
-    escrowSettlementFees(itemCount)) as coins;
+        (includeTakerPayment ? terms.takerTonFee : (grams("0") as coins)) +
+        NFT_TRANSFER_VALUE * itemCount +
+        automaticNftDeliveryRetryReserve(itemCount) +
+        USDT_DEPOSIT_ASSIGN_VALUE * jettonMessages +
+        automaticUsdtSettlementRetryReserve(
+            jettonMessages,
+            self.deposits.load().usdt.termsPayloadBits,
+            self.deposits.load().usdt.termsPayloadCells,
+        ) +
+        escrowSettlementFees(itemCount)) as coins;
 }
 
 fun OfferEscrowStorage.requiredUsdtSettlementFinalizationBalance(self): coins {
     val terms = lazy self.terms.load();
     val itemCount = self.totalItemCount();
     return (terms.makerTonFee + terms.takerTonFee + NFT_TRANSFER_VALUE * itemCount +
-    automaticNftDeliveryRetryReserve(itemCount) +
-    escrowSettlementFees(itemCount) +
-    usdtRecoveryStorageReserve()) as coins;
+        automaticNftDeliveryRetryReserve(itemCount) +
+        escrowSettlementFees(itemCount) +
+        usdtRecoveryStorageReserve()) as coins;
 }

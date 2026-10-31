@@ -15,13 +15,13 @@ fun usdtRecoveryStorageReserve(): coins {
         .endCell();
     val (cells, bits, _) = accountCells.calculateSizeStrict(USDT_STORAGE_SIZE_LIMIT);
     // Include account metadata and a buffer for the last beneficiary/status update.
-    return ton("0.01") +
-    calculateStorageFee(
-        BASECHAIN,
-        USDT_RECOVERY_RETENTION_SECONDS,
-        bits + 1024,
-        cells + 8,
-    );
+    return grams("0.01") +
+        calculateStorageFee(
+            BASECHAIN,
+            USDT_RECOVERY_RETENTION_SECONDS,
+            bits + 1024,
+            cells + 8,
+        );
 }
 
 fun computeCost(gasUnits: GasUnits): coins {
@@ -61,13 +61,13 @@ fun automaticUsdtSettlementRetryReserve(
     usdtTermsCells: int,
 ): coins {
     if (depositCount <= 0) {
-        return ton("0");
+        return grams("0");
     }
     return (depositCount *
-    (USDT_DEPOSIT_ASSIGN_VALUE + executionCost(GAS_ESCROW_SETTLEMENT, 1) +
-    AUTOMATIC_USDT_RETRY_OVERHEAD) +
-    usdtStateInitForwardingExtra(depositCount, usdtTermsBits, usdtTermsCells) +
-    (depositCount > 1 ? MAX_USDT_DEPOSITS - 1 : 0)) as coins;
+        (USDT_DEPOSIT_ASSIGN_VALUE + executionCost(GAS_ESCROW_SETTLEMENT, 1) +
+            AUTOMATIC_USDT_RETRY_OVERHEAD) +
+        usdtStateInitForwardingExtra(depositCount, usdtTermsBits, usdtTermsCells) +
+        (depositCount > 1 ? MAX_USDT_DEPOSITS - 1 : 0)) as coins;
 }
 
 // The ordinary envelope is already priced by forwardCost. Charge only additional vault code,
@@ -75,14 +75,14 @@ fun automaticUsdtSettlementRetryReserve(
 @inline
 fun usdtStateInitForwardingExtra(messageCount: int, termsBits: int, termsCells: int): coins {
     if (messageCount <= 0) {
-        return ton("0");
+        return grams("0");
     }
     return calculateForwardFeeWithoutLumpPrice(
         BASECHAIN,
         (USDT_STATE_INIT_MESSAGE_BITS - OUTGOING_MESSAGE_BITS) * messageCount + termsBits,
         (USDT_STATE_INIT_MESSAGE_CELLS - OUTGOING_MESSAGE_CELLS) * messageCount + termsCells,
     ) +
-    messageCount;
+        messageCount;
 }
 
 // External admission must stay within gas_credit: immutable item counts and stored ledger totals
@@ -100,14 +100,14 @@ fun requiredExternalEscrowBalance(
     // 100k includes the base transition plus 34 possible native refunds. Aggregate the initial
     // work and future retries before the two price lookups to stay inside external gas_credit.
     val gas = (nativeObligations > 0 ? 100_000 : 32_000) + 31_600 * nftCount +
-    (assignsUsdt ? 23_000 : 7_000) * usdtCount;
+        (assignsUsdt ? 23_000 : 7_000) * usdtCount;
     val messageCount = 3 * nftCount + (assignsUsdt ? 2 : 1) * usdtCount +
-    (nativeObligations > 0 ? 36 : 2);
+        (nativeObligations > 0 ? 36 : 2);
     val usdtValue = assignsUsdt
         ? (2 * USDT_DEPOSIT_ASSIGN_VALUE + AUTOMATIC_USDT_RETRY_OVERHEAD) as coins
         : USDT_DEPOSIT_REFUND_VALUE;
     var forwarding = calculateForwardFee(BASECHAIN, OUTGOING_MESSAGE_BITS, OUTGOING_MESSAGE_CELLS) *
-    messageCount;
+        messageCount;
     if (usdtCount > 0) {
         val usdtMessages = (assignsUsdt ? 2 : 1) * usdtCount;
         // The base fee already covers the root and the small envelope. Price the additional
@@ -119,9 +119,9 @@ fun requiredExternalEscrowBalance(
         );
     }
     return (nativeObligations + protectedRecovery + MIN_TONS_FOR_STORAGE +
-    2 * NFT_TRANSFER_VALUE * nftCount +
-    usdtValue * usdtCount +
-    calculateGasFee(BASECHAIN, gas) +
-    forwarding +
-    (assignsUsdt && usdtCount > 1 ? MAX_USDT_DEPOSITS : 0)) as coins;
+        2 * NFT_TRANSFER_VALUE * nftCount +
+        usdtValue * usdtCount +
+        calculateGasFee(BASECHAIN, gas) +
+        forwarding +
+        (assignsUsdt && usdtCount > 1 ? MAX_USDT_DEPOSITS : 0)) as coins;
 }

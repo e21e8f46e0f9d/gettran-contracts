@@ -71,11 +71,11 @@ fun onExternalMessage(inMsgBody: slice) {
             // The validated policy proves zero maker obligations. The immutable taker cap
             // bounds a partial lot while its paid principal and fee remain exact.
             var takerItems = 0;
-            var nativePrincipal = ton("0") as coins;
-            var takerFee = ton("0") as coins;
+            var nativePrincipal = grams("0") as coins;
+            var takerFee = grams("0") as coins;
             if (storage.executionAttempt != null) {
                 takerItems = takerItemCount as int;
-                val attempt = lazy storage.executionAttempt!.load();
+                val attempt = lazy storage.executionAttempt.load();
                 if (paymentAsset == (PaymentAsset.Ton as int)) {
                     nativePrincipal = attempt.deposits.total;
                 }
@@ -141,7 +141,7 @@ fun onExternalMessage(inMsgBody: slice) {
             val paymentCell = terms.payment;
             var paymentIsUsdt = false;
             if (paymentCell != null) {
-                val payment = lazy paymentCell!.load();
+                val payment = lazy paymentCell.load();
                 paymentIsUsdt = payment.asset == PaymentAsset.Usdt;
             }
             if (paymentIsUsdt && terms.makerTonFee == 0 && terms.takerTonFee == 0) {
@@ -149,7 +149,7 @@ fun onExternalMessage(inMsgBody: slice) {
                 // Provider-only partial lots can use caller-funded internal cancellation.
                 val deposits = lazy storage.deposits.load();
                 val nftCount = (storage.makerItems.isEmpty() ? 0 : terms.makerItemCount as int) +
-                (storage.executionAttempt == null ? 0 : terms.takerItemCount as int);
+                    (storage.executionAttempt == null ? 0 : terms.takerItemCount as int);
                 val required = requiredExternalEscrowBalance(
                     0,
                     storage.automaticRecoveryBudget,
@@ -340,7 +340,7 @@ fun onInternalMessage(in: InMessage) {
             // возникает после первого фактического USDT receipt.
             if (msg.execution != null && msg.sideFeeAmount > 0) {
                 val executionAttempt = StartCertifiedOfferExecution.fromCell(
-                    msg.execution!,
+                    msg.execution,
                 );
                 assert (
                     executionAttempt.paymentAmount == 0 && executionAttempt.sideFeeAmount == 0
@@ -377,12 +377,12 @@ fun onInternalMessage(in: InMessage) {
             val payment = storage.terms.load().payment;
             assert (payment != null) throw CertifiedOfferEscrowErrors.InvalidTerms;
             assert (
-                payment!.load().payer != OfferSide.Taker ||
+                payment.load().payer != OfferSide.Taker ||
                 !storage.terms.load().parties.load().isMakerWallet(in.senderAddress)
             ) throw CertifiedOfferEscrowErrors.InvalidContributorSet;
             assert (
                 msg.offerExecutionNumber ==
-                (payment!.load().payer == OfferSide.Maker
+                (payment.load().payer == OfferSide.Maker
                     ? (0 as uint32)
                     : storage.offerExecutionNumber)
             ) throw CertifiedOfferEscrowErrors.ExecutionAttemptMoved;
@@ -397,7 +397,7 @@ fun onInternalMessage(in: InMessage) {
                 );
                 val executionCell = msg.execution;
                 assert (executionCell != null) throw CertifiedOfferEscrowErrors.InvalidCertificate;
-                val execution = StartCertifiedOfferExecution.fromCell(executionCell!);
+                val execution = StartCertifiedOfferExecution.fromCell(executionCell);
                 val certificate = CertifiedExecutionCertificate.fromCell(execution.signed);
                 assert (
                     certificateIsValid(
@@ -411,7 +411,7 @@ fun onInternalMessage(in: InMessage) {
 
                 val executionAttempt = storage.executionAttempt;
                 if (executionAttempt != null) {
-                    val attempt = lazy executionAttempt!.load();
+                    val attempt = lazy executionAttempt.load();
                     assert (
                         attempt.certificateHash == execution.signed.hash() &&
                         attempt.confirmedContributorWallets.exists(in.senderAddress)
@@ -443,7 +443,7 @@ fun onInternalMessage(in: InMessage) {
                             val reserveRefund = createMessage({
                                 bounce: BounceMode.NoBounce,
                                 value: refund,
-                                dest: reserveRefundRecipient!,
+                                dest: reserveRefundRecipient,
                             });
                             reserveRefund.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
                         }
@@ -457,20 +457,20 @@ fun onInternalMessage(in: InMessage) {
             prepareUsdtPayment(
                 in.senderAddress,
                 in.valueCoins - msg.sideFeeAmount,
-                payment!.load(),
+                payment.load(),
                 msg,
                 preMessageBalanceToReserve,
             );
             var fundedStorage = CertifiedOfferEscrowStorage.load();
-            if (payment!.load().payer == OfferSide.Maker) {
+            if (payment.load().payer == OfferSide.Maker) {
                 val vaultCount = (msg.principal > 0 ? 1 : 0) + (msg.marketplaceFee > 0 ? 1 : 0);
                 fundedStorage.recordMakerReservePayer(
                     in.senderAddress,
                     max(
                         0,
                         in.valueCoins - msg.sideFeeAmount -
-                        USDT_DEPOSIT_PREPARE_VALUE * vaultCount -
-                        USDT_DEPOSIT_PREPARATION_OVERHEAD,
+                            USDT_DEPOSIT_PREPARE_VALUE * vaultCount -
+                            USDT_DEPOSIT_PREPARATION_OVERHEAD,
                     ),
                 );
                 fundedStorage.save();
@@ -487,8 +487,8 @@ fun onInternalMessage(in: InMessage) {
                 msg.terms,
                 msg.attempt,
                 storage.isClosed() ||
-                (deposit.side == OfferSide.Taker && deposit.offerExecutionNumber <
-                storage.offerExecutionNumber),
+                    (deposit.side == OfferSide.Taker && deposit.offerExecutionNumber <
+                        storage.offerExecutionNumber),
                 storage.paymentRefundReason(),
                 in.valueCoins,
             );
@@ -667,7 +667,7 @@ fun paymentTermsAreValid(
     }
     val payment = lazy paymentCell.load();
     return payment.amount > 0 && payment.marketplaceFee < payment.amount &&
-    (!hasSwapFee || (makerItemCount > 0 && takerItemCount > 0));
+        (!hasSwapFee || (makerItemCount > 0 && takerItemCount > 0));
 }
 
 struct DisjointItemProgress {
@@ -731,7 +731,7 @@ fun termsAreValid(storage: CertifiedOfferEscrowStorage): bool {
     val makerDeliveryCount = deliveryCount(policy.makerDelivery);
     val makerCancellation = parties.makerCancellation;
     val makerCancellationIsValid = makerCancellation == null ||
-    makerCancellation!.load().isValidFor(parties.makerWallets);
+        makerCancellation.load().isValidFor(parties.makerWallets);
 
     var makerHasConsideration = terms.makerItemCount > 0;
     var takerHasConsideration = terms.takerItemCount > 0;
@@ -742,38 +742,38 @@ fun termsAreValid(storage: CertifiedOfferEscrowStorage): bool {
         takerHasConsideration = takerHasConsideration || payment.payer == OfferSide.Taker;
     }
     val makerHasOnchainObligation = terms.makerItemCount != makerDeliveryCount ||
-    terms.makerTonFee > 0 ||
-    (paymentCell != null && paymentCell!.load().payer == OfferSide.Maker);
+        terms.makerTonFee > 0 ||
+        (paymentCell != null && paymentCell.load().payer == OfferSide.Maker);
     val custodiedCancellationIsValid = policy.custodiedCancellationByCertifier
         ? !makerHasOnchainObligation && parties.makerWallets.isEmpty() && makerCancellation == null
         : parties.makerWallets.isValid(false);
 
     return terms.makerItemCount + terms.takerItemCount <= MAX_CERTIFIED_OFFER_ITEMS &&
-    makerProgress.isWithinLimit &&
-    makerProgress.promisedCount + makerDeliveryCount == terms.makerItemCount &&
-    fixedProgress.isWithinLimit &&
-    fixedProgress.isDisjoint &&
-    fixedProgress.depositedCount == 0 &&
-    fixedProgress.promisedCount <= terms.takerItemCount &&
-    (policy.makerDelivery != null || fixedProgress.promisedCount < terms.takerItemCount) &&
-    makerHasConsideration &&
-    takerHasConsideration &&
-    paymentTermsAreValid(
-        paymentCell,
-        terms.makerTonFee > 0 || terms.takerTonFee > 0,
-        terms.makerItemCount,
-        terms.takerItemCount,
-    ) &&
-    custodiedCancellationIsValid &&
-    parties.makerSettlementWallet.getWorkchain() == BASECHAIN &&
-    parties.addresseeWallets.isValid(true) &&
-    parties.hasIndependentTakerWallets(parties.addresseeWallets) &&
-    storage.makerItems.refundRecipientsAreAllowedBy(parties.makerWallets, false) &&
-    policy.fixedTakerItems.refundRecipientsAreAllowedBy(parties.addresseeWallets, true) &&
-    makerCancellationIsValid &&
-    storage.executionAttemptTtl > 0 &&
-    storage.executionAttemptTtl <= MAX_CERTIFIED_EXECUTION_ATTEMPT_TTL &&
-    storage.certifierPublicKey != 0;
+        makerProgress.isWithinLimit &&
+        makerProgress.promisedCount + makerDeliveryCount == terms.makerItemCount &&
+        fixedProgress.isWithinLimit &&
+        fixedProgress.isDisjoint &&
+        fixedProgress.depositedCount == 0 &&
+        fixedProgress.promisedCount <= terms.takerItemCount &&
+        (policy.makerDelivery != null || fixedProgress.promisedCount < terms.takerItemCount) &&
+        makerHasConsideration &&
+        takerHasConsideration &&
+        paymentTermsAreValid(
+            paymentCell,
+            terms.makerTonFee > 0 || terms.takerTonFee > 0,
+            terms.makerItemCount,
+            terms.takerItemCount,
+        ) &&
+        custodiedCancellationIsValid &&
+        parties.makerSettlementWallet.getWorkchain() == BASECHAIN &&
+        parties.addresseeWallets.isValid(true) &&
+        parties.hasIndependentTakerWallets(parties.addresseeWallets) &&
+        storage.makerItems.refundRecipientsAreAllowedBy(parties.makerWallets, false) &&
+        policy.fixedTakerItems.refundRecipientsAreAllowedBy(parties.addresseeWallets, true) &&
+        makerCancellationIsValid &&
+        storage.executionAttemptTtl > 0 &&
+        storage.executionAttemptTtl <= MAX_CERTIFIED_EXECUTION_ATTEMPT_TTL &&
+        storage.certifierPublicKey != 0;
 }
 
 fun selectedItemsAreValid(
@@ -817,30 +817,30 @@ fun certificateIsValid(
     val latestAdmissionEnd = min(now + storage.executionAttemptTtl, storage.expiresAt);
     val takerDeliveryCount = deliveryCount(details.delivery);
     val hasOnchainSettlement = !storage.makerItems.isEmpty() || !details.items.isEmpty() ||
-    terms.payment != null ||
-    terms.makerTonFee > 0 ||
-    details.takerTonFee > 0;
+        terms.payment != null ||
+        terms.makerTonFee > 0 ||
+        details.takerTonFee > 0;
 
     return hasOnchainSettlement && details.takerTonFee <= terms.takerTonFee &&
-    isSignatureValid(signedHash, signature as slice, storage.certifierPublicKey) &&
-    certificate.escrow == contract.getAddress() &&
-    certificate.offerId == terms.offerId &&
-    certificate.offerExecutionNumber == storage.offerExecutionNumber &&
-    certificate.requirementCommitment == policy.takerRequirementCommitment &&
-    certificate.validUntil > now &&
-    certificate.validUntil <= latestAdmissionEnd &&
-    details.contributorWallets.isAllowedBy(terms.parties.load().addresseeWallets) &&
-    terms.parties.load().hasIndependentTakerWallets(details.contributorWallets) &&
-    !terms.parties.load().isMakerWallet(details.takerSettlementWallet) &&
-    details.takerSettlementWallet.getWorkchain() == BASECHAIN &&
-    selectedItemsAreValid(
-        details.items,
-        policy.fixedTakerItems,
-        storage.makerItems,
-        details.contributorWallets,
-        terms.takerItemCount,
-        takerDeliveryCount,
-    );
+        isSignatureValid(signedHash, signature as slice, storage.certifierPublicKey) &&
+        certificate.escrow == contract.getAddress() &&
+        certificate.offerId == terms.offerId &&
+        certificate.offerExecutionNumber == storage.offerExecutionNumber &&
+        certificate.requirementCommitment == policy.takerRequirementCommitment &&
+        certificate.validUntil > now &&
+        certificate.validUntil <= latestAdmissionEnd &&
+        details.contributorWallets.isAllowedBy(terms.parties.load().addresseeWallets) &&
+        terms.parties.load().hasIndependentTakerWallets(details.contributorWallets) &&
+        !terms.parties.load().isMakerWallet(details.takerSettlementWallet) &&
+        details.takerSettlementWallet.getWorkchain() == BASECHAIN &&
+        selectedItemsAreValid(
+            details.items,
+            policy.fixedTakerItems,
+            storage.makerItems,
+            details.contributorWallets,
+            terms.takerItemCount,
+            takerDeliveryCount,
+        );
 }
 
 fun startOfferExecution(
@@ -936,10 +936,10 @@ fun buyWithTon(
     val terms = lazy initial.terms.load();
     val paymentCell = terms.payment;
     assert (paymentCell != null) throw CertifiedOfferEscrowErrors.InvalidTerms;
-    val payment = lazy paymentCell!.load();
+    val payment = lazy paymentCell.load();
     assert (
         (initial.status == CertifiedOfferEscrowStatus.CollectingMaker ||
-        initial.status == CertifiedOfferEscrowStatus.Open) &&
+            initial.status == CertifiedOfferEscrowStatus.Open) &&
         payment.asset == PaymentAsset.Ton &&
         payment.payer == OfferSide.Taker &&
         terms.takerItemCount == 0 &&
@@ -1004,9 +1004,9 @@ fun applyItemDeposit(item: address, depositor: address, forwardPayload: slice) {
     if (
         executionCell != null &&
         (storage.status == CertifiedOfferEscrowStatus.Open ||
-        storage.status == CertifiedOfferEscrowStatus.CollectingTaker)
+            storage.status == CertifiedOfferEscrowStatus.CollectingTaker)
     ) {
-        if (!tryStartCertifiedExecutionFromNftCommitment(item, depositor, executionCell!)) {
+        if (!tryStartCertifiedExecutionFromNftCommitment(item, depositor, executionCell)) {
             returnStrayNft(item, depositor, storage.itemRefundReason());
             return;
         }
@@ -1096,14 +1096,14 @@ fun CertifiedOfferEscrowStorage.assertExecutionStartsWithCommitment(
     if (paymentCell != null) {
         val payment = lazy paymentCell.load();
         hasFullNativePayment = payment.asset == PaymentAsset.Ton &&
-        payment.payer == OfferSide.Taker &&
-        paymentAmount == payment.amount;
+            payment.payer == OfferSide.Taker &&
+            paymentAmount == payment.amount;
     }
     val certificate = lazy CertifiedExecutionCertificate.fromCell(signed);
     val details = lazy certificate.details.load();
     val hasFullSideFee = details.takerTonFee > 0 && sideFeeAmount == details.takerTonFee;
     val hasProviderCommitment = details.items.isEmpty() && details.delivery != null &&
-    (paymentCell == null || paymentCell!.load().payer == OfferSide.Maker);
+        (paymentCell == null || paymentCell.load().payer == OfferSide.Maker);
     assert (
         hasFullNativePayment || hasFullSideFee || hasProviderCommitment
     ) throw CertifiedOfferEscrowErrors.NotEnoughValue;
@@ -1121,7 +1121,7 @@ fun openIfMakerReady(mutate storage: CertifiedOfferEscrowStorage) {
     if (paymentCell != null) {
         val payment = lazy paymentCell.load();
         makerPaymentReady = payment.payer != OfferSide.Maker ||
-        storage.deposits.load().maker.total == payment.amount;
+            storage.deposits.load().maker.total == payment.amount;
     }
 
     if (
@@ -1154,9 +1154,9 @@ fun CertifiedOfferEscrowStorage.paymentRefundReason(self): RefundReason {
     val execution = self.executionAttempt;
     if (
         (self.status == CertifiedOfferEscrowStatus.CollectingTaker ||
-        self.status == CertifiedOfferEscrowStatus.AwaitingApproval) &&
+            self.status == CertifiedOfferEscrowStatus.AwaitingApproval) &&
         execution != null &&
-        blockchain.now() >= execution!.load().validUntil
+        blockchain.now() >= execution.load().validUntil
     ) {
         return RefundReason.ExecutionExpired;
     }
@@ -1283,7 +1283,7 @@ fun applyUsdtDeposit(sender: address, depositCell: Cell<UsdtDepositTerms>) {
         if (
             !tryStartCertifiedExecutionFromUsdtCommitment(
                 deposit.contributor,
-                deposit.execution!,
+                deposit.execution,
             )
         ) {
             return;
@@ -1388,7 +1388,7 @@ fun CertifiedOfferEscrowStorage.recordMakerReservePayer(
     if (
         self.reserveRefundRecipient != null || reserveValue <= 0 ||
         (self.status != CertifiedOfferEscrowStatus.CollectingMaker &&
-        self.status != CertifiedOfferEscrowStatus.Open)
+            self.status != CertifiedOfferEscrowStatus.Open)
     ) {
         return false;
     }
@@ -1397,13 +1397,13 @@ fun CertifiedOfferEscrowStorage.recordMakerReservePayer(
         return false;
     }
     val payment = terms.payment;
-    val makerPrincipal = payment != null && payment!.load().payer == OfferSide.Maker &&
-    payment!.load().asset == PaymentAsset.Ton
-        ? payment!.load().amount
+    val makerPrincipal = payment != null && payment.load().payer == OfferSide.Maker &&
+        payment.load().asset == PaymentAsset.Ton
+        ? payment.load().amount
         : (0 as coins);
     val requiredReserve = self.requiredExecutionBalance(false) + MIN_TONS_FOR_STORAGE -
-    makerPrincipal -
-    terms.makerTonFee;
+        makerPrincipal -
+        terms.makerTonFee;
     // Мелкие deployment nudges и NFT forward value не дают права на чужой основной резерв.
     if (reserveValue >= requiredReserve) {
         self.reserveRefundRecipient = sender;
@@ -1421,7 +1421,7 @@ fun CertifiedOfferEscrowStorage.recordUncommittedTakerReservePayer(
 ): bool {
     if (
         (self.status != CertifiedOfferEscrowStatus.CollectingMaker &&
-        self.status != CertifiedOfferEscrowStatus.Open) ||
+            self.status != CertifiedOfferEscrowStatus.Open) ||
         self.executionAttempt != null ||
         !self.makerItems.isEmpty() ||
         sender == contract.getAddress() ||
@@ -1434,7 +1434,7 @@ fun CertifiedOfferEscrowStorage.recordUncommittedTakerReservePayer(
     val deposits = self.deposits.load();
     if (
         !terms.parties.load().makerWallets.isEmpty() || terms.makerTonFee > 0 ||
-        (payment != null && payment!.load().payer == OfferSide.Maker) ||
+        (payment != null && payment.load().payer == OfferSide.Maker) ||
         deposits.maker.total > 0 ||
         deposits.makerFeePayer != null ||
         deposits.usdt.count > 0 ||
@@ -1460,7 +1460,7 @@ fun CertifiedOfferEscrowStorage.recordUncommittedTakerReservePayer(
             val reserveRefund = createMessage({
                 bounce: BounceMode.NoBounce,
                 value: refund,
-                dest: previousPayer!,
+                dest: previousPayer,
             });
             reserveRefund.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
@@ -1472,7 +1472,7 @@ fun CertifiedOfferEscrowStorage.recordUncommittedTakerReservePayer(
 fun CertifiedOfferEscrowStorage.reserveChangeRecipient(self): address {
     return self.reserveRefundRecipient == null
         ? self.terms.load().parties.load().makerSettlementWallet
-        : self.reserveRefundRecipient!;
+        : self.reserveRefundRecipient;
 }
 
 fun depositEscrowReserve(sender: address, reserveValue: coins) {
@@ -1504,8 +1504,8 @@ fun executionRequiresApproval(
     details: CertifiedExecutionAttemptDetails,
 ): bool {
     return policy.finalizationPolicy == FinalizationPolicy.CertifierGated ||
-    policy.makerDelivery != null ||
-    details.delivery != null;
+        policy.makerDelivery != null ||
+        details.delivery != null;
 }
 
 fun advanceIfReady(mutate storage: CertifiedOfferEscrowStorage) {
@@ -1529,7 +1529,7 @@ fun advanceIfReady(mutate storage: CertifiedOfferEscrowStorage) {
     if (paymentCell != null) {
         val payment = lazy paymentCell.load();
         takerPaymentReady = payment.payer != OfferSide.Taker ||
-        executionAttempt.deposits.total == payment.amount;
+            executionAttempt.deposits.total == payment.amount;
     }
     if (
         !itemProgress.isWithinLimit || !itemProgress.isComplete || !takerPaymentReady ||
@@ -1793,9 +1793,9 @@ fun selectFundedUsdtHolding(
     var storage = CertifiedOfferEscrowStorage.load();
     val deposit = depositCell.load();
     val isCommitting = storage.status == CertifiedOfferEscrowStatus.AwaitingPayoutConfirmation ||
-    storage.status == CertifiedOfferEscrowStatus.PayoutConfirmed ||
-    storage.status == CertifiedOfferEscrowStatus.Settled;
-    reserveToncoinsOnBalance(
+        storage.status == CertifiedOfferEscrowStatus.PayoutConfirmed ||
+        storage.status == CertifiedOfferEscrowStatus.Settled;
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - msgValue),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -1803,7 +1803,7 @@ fun selectFundedUsdtHolding(
         assert (
             storage.isClosed() ||
             (deposit.side == OfferSide.Taker && deposit.offerExecutionNumber <
-            storage.offerExecutionNumber)
+                storage.offerExecutionNumber)
         ) throw UsdtDepositVaultErrors.DecisionPending;
         refundUsdtHolding(depositCell, attempt, storage.paymentRefundReason(), msgValue);
         return;
@@ -1877,7 +1877,7 @@ fun resolveUsdtDeposit(msgValue: coins, depositCell: Cell<UsdtDepositTerms>) {
         deposit.escrow == contract.getAddress() && deposit.amount > 0
     ) throw UsdtDepositVaultErrors.InvalidTerms;
     assert (msgValue >= USDT_DEPOSIT_RESOLVE_VALUE) throw CertifiedOfferEscrowErrors.NotEnoughValue;
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - msgValue),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -1885,8 +1885,8 @@ fun resolveUsdtDeposit(msgValue: coins, depositCell: Cell<UsdtDepositTerms>) {
     val deposits = storage.deposits.load().usdt;
     val isRecorded = deposits.entries.exists(usdtDepositInit(depositCell).calculateAddress());
     val isCommitting = storage.status == CertifiedOfferEscrowStatus.AwaitingPayoutConfirmation ||
-    storage.status == CertifiedOfferEscrowStatus.PayoutConfirmed ||
-    storage.status == CertifiedOfferEscrowStatus.Settled;
+        storage.status == CertifiedOfferEscrowStatus.PayoutConfirmed ||
+        storage.status == CertifiedOfferEscrowStatus.Settled;
     if (isCommitting && isRecorded) {
         val terms = storage.terms.load();
         val payment = terms.payment!.load();
@@ -1902,7 +1902,7 @@ fun resolveUsdtDeposit(msgValue: coins, depositCell: Cell<UsdtDepositTerms>) {
                 .get(usdtDepositInit(depositCell).calculateAddress())
                 .loadValue()
                 .selectedAttempt,
-            msgValue - ton("0.03"),
+            msgValue - grams("0.03"),
         );
         return;
     }
@@ -1911,7 +1911,7 @@ fun resolveUsdtDeposit(msgValue: coins, depositCell: Cell<UsdtDepositTerms>) {
     assert (
         storage.isClosed() || isCommitting ||
         (deposit.side == OfferSide.Taker && deposit.offerExecutionNumber <
-        storage.offerExecutionNumber)
+            storage.offerExecutionNumber)
     ) throw UsdtDepositVaultErrors.DecisionPending;
     refundUsdtDeposit(
         depositCell,
@@ -1923,7 +1923,7 @@ fun scheduleSettlementResume(queryId: uint64) {
     val resume = createMessage({
         bounce: BounceMode.NoBounce,
         dest: contract.getAddress(),
-        value: ton("0"),
+        value: grams("0"),
         body: ResumeCertifiedSettlement { queryId },
     });
     resume.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
@@ -1979,8 +1979,8 @@ fun finishSettlement(original: CertifiedOfferEscrowStorage) {
         executionAttempt.excessRecipient == null
             ? (storage.reserveRefundRecipient == null
                 ? parties.makerSettlementWallet
-                : storage.reserveRefundRecipient!)
-            : executionAttempt.excessRecipient!,
+                : storage.reserveRefundRecipient)
+            : executionAttempt.excessRecipient,
         paymentCell != null && paymentCell.load().asset == PaymentAsset.Usdt
             ? usdtRecoveryStorageReserve() + storage.automaticRecoveryBudget
             : MIN_TONS_FOR_STORAGE + storage.automaticRecoveryBudget,
@@ -2003,9 +2003,9 @@ fun resumeSettlement(msgValue: coins) {
     val retryableCount = deposits.retryableAssignmentCount(false);
     assert (retryableCount > 0) throw CertifiedOfferEscrowErrors.SettlementNotResumable;
     val requiredValue = USDT_DEPOSIT_ASSIGN_VALUE * retryableCount +
-    executionCost(GAS_ESCROW_SETTLEMENT, retryableCount);
+        executionCost(GAS_ESCROW_SETTLEMENT, retryableCount);
     assert (msgValue >= requiredValue) throw CertifiedOfferEscrowErrors.NotEnoughValue;
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - msgValue),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -2069,7 +2069,7 @@ fun resumeSettlementFromReserve(original: CertifiedOfferEscrowStorage, vault: ad
         record.termsPayloadBits,
         record.termsPayloadCells,
     );
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - storage.automaticRecoveryBudget),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -2137,7 +2137,7 @@ fun CertifiedOfferEscrowStorage.assertMayExternallyReleaseExecution(
 
     val executionAttemptCell = self.executionAttempt;
     assert (executionAttemptCell != null) throw CertifiedOfferEscrowErrors.NotOpen;
-    val executionAttempt = lazy executionAttemptCell!.load();
+    val executionAttempt = lazy executionAttemptCell.load();
     assert (
         blockchain.now() >= executionAttempt.validUntil
     ) throw CertifiedOfferEscrowErrors.NotAllowedToRelease;
@@ -2148,7 +2148,7 @@ fun releaseCurrentExecutionAttempt(original: CertifiedOfferEscrowStorage) {
     val executionAttemptCell = storage.executionAttempt;
     // Оба entrypoint доказывают наличие execution attempt до общего перехода.
     assert (executionAttemptCell != null) throw CertifiedOfferEscrowErrors.NotOpen;
-    val executionAttempt = lazy executionAttemptCell!.load();
+    val executionAttempt = lazy executionAttemptCell.load();
     val details = lazy executionAttempt.details.load();
     reopenAfterRejectedExecutionAttempt(
         mutate storage,
@@ -2359,7 +2359,7 @@ fun reopenAfterRejectedExecutionAttempt(
     storage.offerExecutionNumber += 1;
     storage.executionAttempt = null;
     val makerFundedReserve = reserveRefundRecipient != null &&
-    storage.terms.load().parties.load().makerWallets.exists(reserveRefundRecipient!);
+        storage.terms.load().parties.load().makerWallets.exists(reserveRefundRecipient);
     if (!makerFundedReserve) {
         storage.reserveRefundRecipient = null;
     }
@@ -2383,7 +2383,7 @@ fun reopenAfterRejectedExecutionAttempt(
         returnChange(
             executionAttempt.excessRecipient == null
                 ? reserveRefundRecipient!
-                : executionAttempt.excessRecipient!,
+                : executionAttempt.excessRecipient,
         );
     }
 }
@@ -2407,7 +2407,7 @@ fun collectExecutionAttemptPaymentRefunds(
         }
     }
     if (executionAttempt.feePayer != null && executionAttempt.details.load().takerTonFee > 0) {
-        nativeRefunds.add(executionAttempt.feePayer!, executionAttempt.details.load().takerTonFee);
+        nativeRefunds.add(executionAttempt.feePayer, executionAttempt.details.load().takerTonFee);
     }
 }
 
@@ -2450,7 +2450,7 @@ fun assertMakerCancellationForParties(
     val policy = parties.makerCancellation;
     assert (policy != null) throw CertifiedOfferEscrowErrors.MakerCancellationUnavailable;
     assert (
-        policy!.load().accepts(signature, signed, offerId)
+        policy.load().accepts(signature, signed, offerId)
     ) throw CertifiedOfferEscrowErrors.InvalidMakerCancellation;
 }
 
@@ -2467,7 +2467,7 @@ fun assertCertifiedCustodiedCancellation(
     val paymentCell = terms.payment;
     var paymentAsset = -1;
     if (paymentCell != null) {
-        val payment = lazy paymentCell!.load();
+        val payment = lazy paymentCell.load();
         assert (
             payment.payer != OfferSide.Maker
         ) throw CertifiedOfferEscrowErrors.MakerCancellationUnavailable;
@@ -2607,11 +2607,11 @@ fun closeOffer(original: CertifiedOfferEscrowStorage, closedAs: CertifiedOfferEs
     refundNativeContributions(nativeRefunds, reason);
     var excessRecipient = storage.reserveRefundRecipient == null
         ? parties.makerSettlementWallet
-        : storage.reserveRefundRecipient!;
+        : storage.reserveRefundRecipient;
     if (executionAttemptCell != null) {
         val executionAttempt = lazy executionAttemptCell.load();
         if (executionAttempt.excessRecipient != null) {
-            excessRecipient = executionAttempt.excessRecipient!;
+            excessRecipient = executionAttempt.excessRecipient;
         }
     }
     returnChange(
@@ -2707,7 +2707,7 @@ fun retryNftDelivery(sender: address, msgValue: coins, nft: address) {
         val recipient = nftRecoveryRecipient(storage, nft);
         assert (recipient != null) throw CertifiedOfferEscrowErrors.NotRecoverableNft;
         delivery = {
-            recipient: recipient!,
+            recipient,
             queryId: 0,
             comment: storage.status == CertifiedOfferEscrowStatus.Settled
                 ? null
@@ -2762,7 +2762,7 @@ fun CertifiedOfferEscrowStorage.assertMayExternallyRetryNftDelivery(
 fun retryNftDeliveryFromReserve(original: CertifiedOfferEscrowStorage, nft: address) {
     var storage = original;
     val retryBudget = requiredNftRetryValue();
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - storage.automaticRecoveryBudget),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -2825,7 +2825,7 @@ fun finishNftDeliveryFence(nft: address, queryId: uint64) {
             closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
         );
     } else if (pending.sponsor != null) {
-        refundTon(pending.sponsor!, GAS_REFUND_COMMENT);
+        refundTon(pending.sponsor, GAS_REFUND_COMMENT);
     }
 }
 
@@ -2858,7 +2858,7 @@ fun failNftDelivery(nft: address, queryId: uint64) {
     storage.deposits = deposits.toCell();
     storage.save();
     if (failed.sponsor != null) {
-        refundTon(failed.sponsor!, GAS_REFUND_COMMENT);
+        refundTon(failed.sponsor, GAS_REFUND_COMMENT);
     } else if (failed.automaticAttempts > 0) {
         // Bounce вернул неистраченный transfer value. Остальным NFT сохраняем их retry budget,
         // а остаток завершённой автоматической попытки возвращаем плательщику резерва.
@@ -2909,7 +2909,7 @@ fun recoverUnexpectedNft(
 
     val policy = storage.terms.load().policy.load();
     var isRecorded = storage.makerItems.exists(nft) || policy.fixedTakerItems.exists(nft) ||
-    storage.deposits.load().nftDeliveries.exists(nft);
+        storage.deposits.load().nftDeliveries.exists(nft);
     val executionAttemptCell = storage.executionAttempt;
     if (!isRecorded && executionAttemptCell != null) {
         isRecorded = executionAttemptCell.load().details.load().items.exists(nft);
@@ -2946,7 +2946,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     if (originalBody == null) {
         return;
     }
-    var body = originalBody!;
+    var body = originalBody;
     if (body.remainingBitsCount() < 32) {
         return;
     }
@@ -3031,17 +3031,17 @@ get fun usdt_recovery_storage_reserve(): coins {
 @inline
 fun CertifiedOfferEscrowStorage.externalPaidTonFees(self): coins {
     if (self.isClosed()) {
-        return ton("0");
+        return grams("0");
     }
     val terms = lazy self.terms.load();
     val deposits = lazy self.deposits.load();
     val makerFee = terms.makerTonFee == 0 || deposits.makerFeePayer == null
-        ? (ton("0") as coins)
+        ? (grams("0") as coins)
         : terms.makerTonFee;
     val attempt = self.executionAttempt;
-    val takerFee = terms.takerTonFee == 0 || attempt == null || attempt!.load().feePayer == null
-        ? (ton("0") as coins)
-        : attempt!.load().details.load().takerTonFee;
+    val takerFee = terms.takerTonFee == 0 || attempt == null || attempt.load().feePayer == null
+        ? (grams("0") as coins)
+        : attempt.load().details.load().takerTonFee;
     return makerFee + takerFee;
 }
 
@@ -3090,21 +3090,21 @@ fun assertExternalTransitionReserve(
     val deposits = lazy depositsCell.load();
     val makerItems = makerItemsMap.isEmpty() ? 0 : makerItemCount as int;
     var takerItems = 0;
-    var nativePrincipal = ton("0") as coins;
+    var nativePrincipal = grams("0") as coins;
     var paymentAsset = -1;
     if (paymentCell != null) {
-        val payment = lazy paymentCell!.load();
+        val payment = lazy paymentCell.load();
         paymentAsset = payment.asset as int;
     }
     if (paymentAsset == (PaymentAsset.Ton as int)) {
         nativePrincipal = deposits.maker.total;
     }
     val makerFee = makerTonFee == 0 || deposits.makerFeePayer == null
-        ? (ton("0") as coins)
+        ? (grams("0") as coins)
         : makerTonFee;
-    var takerFee = ton("0") as coins;
+    var takerFee = grams("0") as coins;
     if (executionAttemptCell != null) {
-        val attempt = lazy executionAttemptCell!.load();
+        val attempt = lazy executionAttemptCell.load();
         val details = lazy attempt.details.load();
         if (!details.items.isEmpty()) {
             takerItems = takerItemCount as int;
@@ -3118,7 +3118,7 @@ fun assertExternalTransitionReserve(
     }
     val nftCount = makerItems + takerItems;
     val usdtCount = paymentAsset != (PaymentAsset.Usdt as int) ||
-    status == CertifiedOfferEscrowStatus.PayoutConfirmed
+        status == CertifiedOfferEscrowStatus.PayoutConfirmed
         ? 0
         : deposits.usdt.count as int;
     val obligations = nativePrincipal + makerFee + takerFee;
@@ -3169,7 +3169,7 @@ fun assertExternalSettlementApproval(
         status == CertifiedOfferEscrowStatus.AwaitingApproval
     ) throw CertifiedOfferEscrowErrors.NotAwaitingApproval;
     assert (executionAttemptCell != null) throw CertifiedOfferEscrowErrors.NotAwaitingApproval;
-    val attempt = lazy executionAttemptCell!.load();
+    val attempt = lazy executionAttemptCell.load();
     val details = lazy attempt.details.load();
     val policy = lazy terms.policy.load();
     val evidence = lazy evidenceCell.load();
@@ -3187,17 +3187,17 @@ fun assertExternalSettlementApproval(
         isSignatureValid(signedCell.hash(), signature as slice, certifierPublicKey)
     ) throw CertifiedOfferEscrowErrors.InvalidSettlementAuthorization;
     val paymentCell = terms.payment;
-    var nativePrincipal = ton("0") as coins;
+    var nativePrincipal = grams("0") as coins;
     var paymentIsUsdt = false;
     if (paymentCell != null) {
-        val payment = lazy paymentCell!.load();
+        val payment = lazy paymentCell.load();
         paymentIsUsdt = payment.asset == PaymentAsset.Usdt;
         if (!paymentIsUsdt) {
             nativePrincipal = payment.amount;
         }
     }
     val nftCount = (makerItemsMap.isEmpty() ? 0 : terms.makerItemCount as int) +
-    (details.items.isEmpty() ? 0 : terms.takerItemCount as int);
+        (details.items.isEmpty() ? 0 : terms.takerItemCount as int);
     val obligations = nativePrincipal + terms.makerTonFee + details.takerTonFee;
     val deposits = lazy depositsCell.load();
     val required = paymentIsUsdt

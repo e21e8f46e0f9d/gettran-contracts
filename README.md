@@ -8,7 +8,7 @@ TON smart contracts for Gettran. Version 1.0.0.
 
 ## Build
 
-Requires Acton 1.1.0.
+Requires Acton 1.2.1.
 
 ```sh
 acton build

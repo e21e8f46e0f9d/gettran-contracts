@@ -17,8 +17,9 @@ fun NftDeliveries.deliverDepositedTo(mutate self, items: ItemDeposits, newOwner:
     val encoded = NftDelivery {
         recipient: newOwner,
         queryId,
-    }.toCell()
-        .beginParse();
+    }
+    .toCell()
+    .beginParse();
     var deliveries = self as unknown as map<address, RemainingBitsAndRefs>;
     var entry = items.findFirst();
     while (entry.isFound) {
@@ -49,8 +50,9 @@ fun NftDeliveries.returnEachToItsDepositor(
         recipient: contract.getAddress(),
         comment,
         queryId,
-    }.toCell()
-        .beginParse();
+    }
+    .toCell()
+    .beginParse();
     suffix.loadAddress();
     var deliveries = self as unknown as map<address, RemainingBitsAndRefs>;
     var deliveryCount = 0;
@@ -60,9 +62,9 @@ fun NftDeliveries.returnEachToItsDepositor(
         val recipient = deposit.depositor;
         if (recipient != null) {
             val nft = entry.getKey();
-            val encoded = beginCell().storeAddress(recipient!).storeSlice(suffix).toSlice();
+            val encoded = beginCell().storeAddress(recipient).storeSlice(suffix).toSlice();
             deliveries.set(nft, encoded);
-            sendNftWithPayload(nft, recipient!, contract.getAddress(), payload, queryId);
+            sendNftWithPayload(nft, recipient, contract.getAddress(), payload, queryId);
             deliveryCount += 1;
         }
         entry = items.iterateNext(entry);
@@ -120,7 +122,7 @@ fun NftDeliveries.returnDeposits(mutate self, items: ItemDeposits, reason: Refun
         if (recipient != null) {
             self.deliverWithPayload(
                 entry.getKey(),
-                recipient!,
+                recipient,
                 comment,
                 payload,
                 queryId,
@@ -147,7 +149,7 @@ fun sendNft(nft: address, newOwner: address, responseTo: address, comment: Cell<
 @inline
 fun nftForwardPayload(comment: Cell<TextComment>?): slice {
     if (comment != null) {
-        return comment!.forwardPayload();
+        return comment.forwardPayload();
     }
     return beginCell()
         .storeBool(false)
@@ -169,7 +171,7 @@ fun sendNftWithPayload(
         newOwner,
         responseDestination: responseTo,
         customPayload: null,
-        forwardAmount: ton("0.000000001"),
+        forwardAmount: grams("0.000000001"),
         forwardPayload: payload,
     };
     val nftTransferMessage = createMessage({
@@ -185,14 +187,14 @@ fun sendNftWithPayload(
 
 fun requiredNftRetryValue(): coins {
     return NFT_TRANSFER_VALUE +
-    executionCost(
-        GAS_ESCROW_SETTLEMENT.add(GAS_PER_ESCROW_ITEM.multiplyBy(2)),
-        2,
-    );
+        executionCost(
+            GAS_ESCROW_SETTLEMENT.add(GAS_PER_ESCROW_ITEM.multiplyBy(2)),
+            2,
+        );
 }
 
 fun automaticNftDeliveryRetryReserve(itemCount: int): coins {
-    return itemCount <= 0 ? (ton("0") as coins) : (requiredNftRetryValue() * itemCount) as coins;
+    return itemCount <= 0 ? (grams("0") as coins) : (requiredNftRetryValue() * itemCount) as coins;
 }
 
 fun sendFundedNftRetry(
@@ -206,12 +208,12 @@ fun sendFundedNftRetry(
     // Public retries must spend only their sponsor's message, including compute and forwarding.
     // Reserve the pre-message balance so an underestimated gas budget fails instead of subsidising it.
     val retainedBalance = max(0, contract.getOriginalBalance() - msgValue);
-    reserveToncoinsOnBalance(retainedBalance, RESERVE_MODE_EXACT_AMOUNT);
+    reserveGramsOnBalance(retainedBalance, RESERVE_MODE_EXACT_AMOUNT);
     sendNft(nft, recipient, responseTo, comment);
     val change = createMessage({
         bounce: BounceMode.NoBounce,
         dest: sponsor,
-        value: ton("0"),
+        value: grams("0"),
         body: UnsafeBodyNoRef { forceInline: TextComment { text: GAS_REFUND_COMMENT } },
     });
     // SAFETY: the pre-message balance is reserved and the NFT transfer is funded before change.
@@ -230,13 +232,13 @@ fun returnStrayNftWithComment(strayNft: address, recipient: address, comment: Ce
         newOwner: recipient,
         responseDestination: recipient,
         customPayload: null,
-        forwardAmount: ton("0.000000001"),
+        forwardAmount: grams("0.000000001"),
         forwardPayload: nftForwardPayload(comment),
     };
     val strayReturnMessage = createMessage({
         bounce: BounceMode.NoBounce,
         dest: strayNft,
-        value: ton("0"),
+        value: grams("0"),
         body,
     });
     strayReturnMessage.send(
@@ -251,7 +253,7 @@ fun requestNftDeliveryFence(nft: address, queryId: uint64) {
     val fenceRequest = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         dest: nft,
-        value: ton("0"),
+        value: grams("0"),
         body: NftGetStaticData { queryId },
     });
     fenceRequest.send(

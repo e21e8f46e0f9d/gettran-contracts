@@ -19,8 +19,7 @@ fun ItemDeposit.isDeposited(self): bool {
 }
 
 fun ItemDeposit.acceptsDepositor(self, depositor: address): bool {
-    return !self.isDeposited() && self.refundRecipient != null &&
-    self.refundRecipient! == depositor;
+    return !self.isDeposited() && self.refundRecipient != null && self.refundRecipient == depositor;
 }
 
 // Execution binding commits one refund wallet for every exact taker NFT. The set must match the
@@ -44,7 +43,7 @@ fun ItemDeposits.commitRefundRecipients(
         var deposit = entry.loadValue();
         if (
             deposit.depositor != null ||
-            (deposit.refundRecipient != null && deposit.refundRecipient! != recipient.loadValue())
+            (deposit.refundRecipient != null && deposit.refundRecipient != recipient.loadValue())
         ) {
             return false;
         }
@@ -104,7 +103,7 @@ fun ItemDeposits.refundRecipientsAreAllowedBy(
         if (
             (recipient == null && !allowUnset) ||
             (recipient != null &&
-            (recipient!.getWorkchain() != BASECHAIN || !allowed.exists(recipient!)))
+                (recipient.getWorkchain() != BASECHAIN || !allowed.exists(recipient)))
         ) {
             return false;
         }

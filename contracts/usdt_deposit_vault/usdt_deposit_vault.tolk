@@ -63,14 +63,14 @@ fun onInternalMessage(in: InMessage) {
                 terms.amount,
                 USDT_DEPOSIT_PROBE_QUERY,
                 storage.holdingAttempt != null &&
-                in.valueCoins >= USDT_HOLDING_FUND_FORWARD_VALUE + ton("0.04")
+                    in.valueCoins >= USDT_HOLDING_FUND_FORWARD_VALUE + grams("0.04")
                     ? USDT_HOLDING_FUND_FORWARD_VALUE
-                    : ton("0.03"),
+                    : grams("0.03"),
                 in.senderAddress,
             );
         }
         ReportUsdtDeposit => {
-            preserveDepositReserve(in.valueCoins, ton("0.03"));
+            preserveDepositReserve(in.valueCoins, grams("0.03"));
             reportDeposit(storage);
         }
         PrepareUsdtHolding => {
@@ -85,9 +85,9 @@ fun onInternalMessage(in: InMessage) {
             }
             val ready = createMessage({
                 bounce: true,
-                value: ton("0"),
+                value: grams("0"),
                 dest: in.senderAddress,
-                body: UsdtHoldingReady { attempt: storage.holdingAttempt! },
+                body: UsdtHoldingReady { attempt: storage.holdingAttempt },
             });
             // SAFETY: Retained holding TON is reserved; only the deployment budget returns to the canonical parent.
             ready.send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -103,11 +103,11 @@ fun onInternalMessage(in: InMessage) {
             ) {
                 return;
             }
-            var allocation = storage.allocation!.load();
+            var allocation = storage.allocation.load();
             if (allocation.attempt != msg.attempt || allocation.dispatched) {
                 return;
             }
-            preserveDepositReserve(in.valueCoins, USDT_HOLDING_FUND_FORWARD_VALUE + ton("0.03"));
+            preserveDepositReserve(in.valueCoins, USDT_HOLDING_FUND_FORWARD_VALUE + grams("0.03"));
             // Never reset on rejection. Owner recreation allocates a new transaction-LT holding
             // instead of risking another debit into the old, possibly selected holding.
             allocation.dispatched = true;
@@ -129,11 +129,11 @@ fun onInternalMessage(in: InMessage) {
             if (
                 storage.status != UsdtDepositStatus.Assigned || storage.selectedAttempt != null ||
                 storage.allocation == null ||
-                storage.allocation!.load().attempt != msg.attempt
+                storage.allocation.load().attempt != msg.attempt
             ) {
                 return;
             }
-            preserveDepositReserve(in.valueCoins, USDT_HOLDING_FUND_FORWARD_VALUE + ton("0.03"));
+            preserveDepositReserve(in.valueCoins, USDT_HOLDING_FUND_FORWARD_VALUE + grams("0.03"));
             // The old probe's rejection does not prove absence of an in-flight transfer. A new
             // holding is safe anyway: the escrow can select only one funded allocation.
             allocatePrincipal(mutate storage, storage.beneficiary!);
@@ -146,13 +146,13 @@ fun onInternalMessage(in: InMessage) {
                 return;
             }
             assert (msg.transferInitiator != null) throw UsdtDepositVaultErrors.InvalidNotification;
-            val isSelfProbe = msg.transferInitiator! == contract.getAddress() &&
-            msg.queryId == USDT_DEPOSIT_PROBE_QUERY;
+            val isSelfProbe = msg.transferInitiator == contract.getAddress() &&
+                msg.queryId == USDT_DEPOSIT_PROBE_QUERY;
             val expectedContributor = storage.holdingAttempt == null
                 ? terms.contributor
                 : mainVault(storage.terms).calculateAddress();
             assert (
-                msg.transferInitiator! == expectedContributor || isSelfProbe
+                msg.transferInitiator == expectedContributor || isSelfProbe
             ) throw UsdtDepositVaultErrors.InvalidNotification;
             // Overpayment funds one obligation. Partial/unnotified intake stays recoverable by
             // an exact self-probe or the escrow's final refund, without a second payer transfer.
@@ -190,7 +190,7 @@ fun onInternalMessage(in: InMessage) {
             assert (
                 in.senderAddress == terms.escrow ||
                 (storage.holdingAttempt != null &&
-                in.senderAddress == mainVault(storage.terms).calculateAddress())
+                    in.senderAddress == mainVault(storage.terms).calculateAddress())
             ) throw UsdtDepositVaultErrors.NotEscrow;
             assert (
                 storage.status != UsdtDepositStatus.Refunded
@@ -203,7 +203,7 @@ fun onInternalMessage(in: InMessage) {
             );
             if (storage.holdingAttempt != null) {
                 assert (
-                    msg.holdingAttempt != null && msg.holdingAttempt! == storage.holdingAttempt!
+                    msg.holdingAttempt != null && msg.holdingAttempt == storage.holdingAttempt
                 ) throw UsdtDepositVaultErrors.InvalidTerms;
                 assignHoldingBeneficiary(mutate storage, msg.beneficiary);
                 return;
@@ -229,8 +229,8 @@ fun onInternalMessage(in: InMessage) {
             // Restore the escrow's durable decision, never a new debit into the selected child.
             val restoration = createMessage({
                 bounce: true,
-                value: ton("0"),
-                dest: holdingVault(storage.terms, msg.holdingAttempt!),
+                value: grams("0"),
+                dest: holdingVault(storage.terms, msg.holdingAttempt),
                 body: RestoreUsdtDepositAssignment {
                     beneficiary: msg.beneficiary,
                     holdingAttempt: msg.holdingAttempt,
@@ -248,7 +248,7 @@ fun onInternalMessage(in: InMessage) {
             ) throw UsdtDepositVaultErrors.InvalidVault;
             assert (
                 storage.status == UsdtDepositStatus.Assigned && storage.beneficiary != null &&
-                storage.beneficiary! == msg.beneficiary &&
+                storage.beneficiary == msg.beneficiary &&
                 (storage.selectedAttempt == null || storage.selectedAttempt == msg.holdingAttempt)
             ) throw UsdtDepositVaultErrors.BeneficiaryAlreadyAssigned;
             storage.selectedAttempt = msg.holdingAttempt;
@@ -280,7 +280,7 @@ fun onInternalMessage(in: InMessage) {
             assert (
                 storage.status == UsdtDepositStatus.Refunded ||
                 (storage.status == UsdtDepositStatus.Assigned &&
-                (storage.holdingAttempt != null || storage.selectedAttempt != null))
+                    (storage.holdingAttempt != null || storage.selectedAttempt != null))
             ) throw UsdtDepositVaultErrors.InvalidStatus;
             preserveDepositReserve(in.valueCoins, USDT_DEPOSIT_REFUND_VALUE);
             transferDepositTokens(
@@ -298,10 +298,10 @@ fun onInternalMessage(in: InMessage) {
                 ? terms.contributor
                 : storage.beneficiary;
             if (storage.holdingAttempt == null && storage.allocation != null) {
-                val allocation = storage.allocation!.load();
+                val allocation = storage.allocation.load();
                 if (
                     (msg.queryId == allocation.attempt ||
-                    msg.queryId == USDT_DEPOSIT_PROBE_QUERY) &&
+                        msg.queryId == USDT_DEPOSIT_PROBE_QUERY) &&
                     in.senderAddress ==
                     deriveUsdtWalletFor(
                         holdingVault(storage.terms, allocation.attempt).calculateAddress(),
@@ -312,10 +312,10 @@ fun onInternalMessage(in: InMessage) {
                 }
             }
             if (
-                recipient != null && in.senderAddress == deriveUsdtWalletFor(recipient!) &&
+                recipient != null && in.senderAddress == deriveUsdtWalletFor(recipient) &&
                 msg.queryId == terms.nonce &&
                 (storage.status == UsdtDepositStatus.Assigned ||
-                storage.status == UsdtDepositStatus.Refunded)
+                    storage.status == UsdtDepositStatus.Refunded)
             ) {
                 returnVaultSurplus(terms.contributor);
             }
@@ -336,7 +336,7 @@ fun holdingVault(terms: Cell<UsdtDepositTerms>, attempt: uint64): AutoDeployAddr
 
 fun preserveDepositReserve(msgValue: coins, requiredValue: coins) {
     assert (msgValue >= requiredValue) throw UsdtDepositVaultErrors.NotEnoughValue;
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(usdtRecoveryStorageReserve(), contract.getOriginalBalance() - msgValue),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -353,11 +353,11 @@ fun transferDepositTokens(
     assert (amount > 0) throw UsdtDepositVaultErrors.InvalidAmount;
     var forwardPayload = beginCell().storeBool(false).toSlice();
     if (comment != null) {
-        forwardPayload = comment!.forwardPayload();
+        forwardPayload = comment.forwardPayload();
     }
     val transfer = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: deriveUsdtWalletFor(contract.getAddress()),
         body: JettonTransfer {
             queryId,
@@ -377,7 +377,7 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
         if (storage.status == UsdtDepositStatus.Deposited) {
             val receipt = createMessage({
                 bounce: true,
-                value: ton("0"),
+                value: grams("0"),
                 dest: storage.terms.load().escrow,
                 body: UsdtDepositReceived { terms: storage.terms },
             });
@@ -391,8 +391,8 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
         if (storage.selectedAttempt != null) {
             val report = createMessage({
                 bounce: true,
-                value: ton("0"),
-                dest: holdingVault(storage.terms, storage.selectedAttempt!),
+                value: grams("0"),
+                dest: holdingVault(storage.terms, storage.selectedAttempt),
                 body: ReportUsdtDeposit {},
             });
             // SAFETY: Retained intake TON is reserved; the caller sponsors only the fixed selected holding report.
@@ -402,7 +402,7 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
             if (allocation.dispatched) {
                 val probe = createMessage({
                     bounce: true,
-                    value: ton("0"),
+                    value: grams("0"),
                     dest: holdingVault(storage.terms, allocation.attempt),
                     body: ProbeUsdtDeposit {},
                 });
@@ -417,11 +417,11 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
     if (storage.status == UsdtDepositStatus.Deposited) {
         val funded = createMessage({
             bounce: true,
-            value: ton("0"),
+            value: grams("0"),
             dest: storage.terms.load().escrow,
             body: UsdtHoldingFunded {
                 terms: storage.terms,
-                attempt: storage.holdingAttempt!,
+                attempt: storage.holdingAttempt,
             },
         });
         // SAFETY: Retained holding TON is reserved; the notification/report budget goes to its immutable escrow.
@@ -434,7 +434,7 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
     val receipt = UsdtDepositAssigned {
         terms: storage.terms,
         beneficiary: storage.beneficiary!,
-        holdingAttempt: storage.holdingAttempt!,
+        holdingAttempt: storage.holdingAttempt,
     };
     val escrowReceipt = createMessage({
         bounce: true,
@@ -445,7 +445,7 @@ fun reportDeposit(storage: UsdtDepositVaultStorage) {
     escrowReceipt.send(SEND_MODE_PAY_FEES_SEPARATELY);
     val parentReceipt = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: mainVault(storage.terms),
         body: receipt,
     });
@@ -477,7 +477,7 @@ fun allocatePrincipal(mutate storage: UsdtDepositVaultStorage, beneficiary: addr
 fun prepareHolding(terms: Cell<UsdtDepositTerms>, attempt: uint64) {
     val preparation = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: holdingVault(terms, attempt),
         body: PrepareUsdtHolding {},
     });
@@ -540,14 +540,14 @@ fun UsdtDepositVaultStorage.transferComment(self): Cell<TextComment> {
 }
 
 fun returnVaultSurplus(contributor: address) {
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         usdtRecoveryStorageReserve(),
         RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_AT_MOST,
     );
     val change = createMessage({
         bounce: BounceMode.NoBounce,
         dest: contributor,
-        value: ton("0"),
+        value: grams("0"),
         body: UnsafeBodyNoRef { forceInline: TextComment { text: GAS_REFUND_COMMENT } },
     });
     // SAFETY: Recovery storage is reserved and the TON recipient is the immutable contributor.
@@ -576,9 +576,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     preserveDepositReserve(in.valueCoins, 0);
     val unavailable = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: mainVault(storage.terms),
-        body: UsdtHoldingUnavailable { attempt: storage.holdingAttempt! },
+        body: UsdtHoldingUnavailable { attempt: storage.holdingAttempt },
     });
     // SAFETY: retained holding TON is reserved; only the rejected probe's sponsor budget returns.
     unavailable.send(SEND_MODE_CARRY_ALL_BALANCE);

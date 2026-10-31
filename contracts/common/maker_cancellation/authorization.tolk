@@ -41,7 +41,7 @@ fun MakerCancellationPolicy.isValidFor(
     if (
         self.appDomainHash == 0 ||
         (self.networkGlobalId != TON_MAINNET_GLOBAL_ID &&
-        self.networkGlobalId != TON_TESTNET_GLOBAL_ID)
+            self.networkGlobalId != TON_TESTNET_GLOBAL_ID)
     ) {
         return false;
     }

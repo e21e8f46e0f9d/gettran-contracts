@@ -1,4 +1,4 @@
-const USDT_DEPOSIT_PREPARATION_OVERHEAD = ton("0.05")
+const USDT_DEPOSIT_PREPARATION_OVERHEAD = grams("0.05")
 
 // Sixteen committed contributor wallets can each deposit principal and fee.
 const MAX_USDT_DEPOSITS = 32
@@ -14,4 +14,4 @@ const USDT_RECOVERY_RETENTION_SECONDS = 365 * 86400
 
 const USDT_STORAGE_SIZE_LIMIT = 4096
 
-const AUTOMATIC_USDT_RETRY_OVERHEAD = ton("0.02")
+const AUTOMATIC_USDT_RETRY_OVERHEAD = grams("0.02")

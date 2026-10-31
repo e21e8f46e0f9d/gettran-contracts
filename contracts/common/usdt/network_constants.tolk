@@ -6,10 +6,10 @@ const USDT_WALLET_CODE_HASH = 0x8f452d7a4dfd74066b682365177259ed05734435be76b5fd
 
 // TON budgets for the isolated USDT deposit lifecycle. These are spending allowances, not fees:
 // each handler reserves recovery storage first and carries or returns the remaining value.
-const USDT_DEPOSIT_PREPARE_VALUE = ton("0.05")
-const USDT_DEPOSIT_ASSIGN_VALUE = ton("0.25")
-const USDT_DEPOSIT_REFUND_VALUE = ton("0.06")
-const USDT_DEPOSIT_RESOLVE_VALUE = ton("0.28")
-const USDT_DEPOSIT_REPORT_VALUE = ton("0.02")
-const USDT_HOLDING_FUND_FORWARD_VALUE = ton("0.15")
-const USDT_HOLDING_ASSIGN_VALUE = ton("0.10")
+const USDT_DEPOSIT_PREPARE_VALUE = grams("0.05")
+const USDT_DEPOSIT_ASSIGN_VALUE = grams("0.25")
+const USDT_DEPOSIT_REFUND_VALUE = grams("0.06")
+const USDT_DEPOSIT_RESOLVE_VALUE = grams("0.28")
+const USDT_DEPOSIT_REPORT_VALUE = grams("0.02")
+const USDT_HOLDING_FUND_FORWARD_VALUE = grams("0.15")
+const USDT_HOLDING_ASSIGN_VALUE = grams("0.10")

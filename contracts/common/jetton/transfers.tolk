@@ -28,11 +28,11 @@ fun sendJettonWithQuery(
     comment: slice?,
     queryId: uint64,
 ) {
-    var forwardTonAmount: coins = ton("0");
+    var forwardTonAmount: coins = grams("0");
     var forwardPayload = beginCell().storeUint(0, 1).toSlice();
     if (comment != null) {
         forwardTonAmount = JETTON_COMMENT_NOTIFY_VALUE;
-        forwardPayload = TextComment { text: comment! }.toCell().forwardPayload();
+        forwardPayload = TextComment { text: comment }.toCell().forwardPayload();
     }
 
     val body = JettonTransfer {
@@ -73,7 +73,7 @@ fun refundJettonViaSender(claimedWallet: address, recipient: address, amount: co
     val jettonRefundMessage = createMessage({
         bounce: BounceMode.NoBounce,
         dest: claimedWallet,
-        value: ton("0"),
+        value: grams("0"),
         body,
     });
     jettonRefundMessage.send(

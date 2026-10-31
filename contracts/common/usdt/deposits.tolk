@@ -148,12 +148,12 @@ fun usdtDepositBeneficiary(
 
 fun UsdtDepositRecord.isRetryable(self, automatic: bool): bool {
     val isPendingTimedOut = self.assignmentStatus == UsdtDepositAssignmentStatus.Pending &&
-    blockchain.now() >= (self.lastAttemptAt as int) + USDT_ASSIGNMENT_RETRY_TIMEOUT;
+        blockchain.now() >= (self.lastAttemptAt as int) + USDT_ASSIGNMENT_RETRY_TIMEOUT;
     val mayRetry = self.assignmentStatus == UsdtDepositAssignmentStatus.Unsent ||
-    self.assignmentStatus == UsdtDepositAssignmentStatus.Failed ||
-    isPendingTimedOut;
+        self.assignmentStatus == UsdtDepositAssignmentStatus.Failed ||
+        isPendingTimedOut;
     return mayRetry &&
-    (!automatic || self.automaticAttempts < MAX_AUTOMATIC_USDT_ASSIGNMENT_ATTEMPTS);
+        (!automatic || self.automaticAttempts < MAX_AUTOMATIC_USDT_ASSIGNMENT_ATTEMPTS);
 }
 
 fun UsdtDeposits.retryableAssignmentCount(self, automatic: bool): int {
@@ -248,7 +248,7 @@ fun UsdtDeposits.selectHolding(
         deposit.selectedAttempt = attempt;
         self.entries.set(vault, deposit);
     }
-    return deposit.selectedAttempt! == attempt;
+    return deposit.selectedAttempt == attempt;
 }
 
 // Only an authenticated, funded holding chosen in the durable escrow record can confirm the
@@ -266,7 +266,7 @@ fun UsdtDeposits.confirmAssignment(
     var deposit = entry.loadValue();
     assert (deposit.terms.hash() == terms.hash()) throw UsdtDepositVaultErrors.InvalidTerms;
     assert (
-        deposit.selectedAttempt != null && deposit.selectedAttempt! == attempt
+        deposit.selectedAttempt != null && deposit.selectedAttempt == attempt
     ) throw UsdtDepositVaultErrors.InvalidVault;
     if (deposit.assignmentStatus == UsdtDepositAssignmentStatus.Assigned) {
         return;
@@ -284,12 +284,12 @@ fun selectUsdtHolding(
     beneficiary: address,
     msgValue: coins,
 ) {
-    if (msgValue < USDT_HOLDING_ASSIGN_VALUE + ton("0.01")) {
+    if (msgValue < USDT_HOLDING_ASSIGN_VALUE + grams("0.01")) {
         return;
     }
     val assignment = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: usdtHoldingInit(terms, attempt),
         body: AssignUsdtDeposit { beneficiary },
     });
@@ -303,12 +303,12 @@ fun refundUsdtHolding(
     reason: RefundReason,
     msgValue: coins,
 ) {
-    if (msgValue < USDT_DEPOSIT_REFUND_VALUE + ton("0.01")) {
+    if (msgValue < USDT_DEPOSIT_REFUND_VALUE + grams("0.01")) {
         return;
     }
     val refund = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: grams("0"),
         dest: usdtHoldingInit(terms, attempt),
         body: RefundUsdtDeposit { comment: TextComment { text: reason.comment() }.toCell() },
     });
@@ -337,13 +337,13 @@ fun resolveUnselectedUsdtHolding(
         if (record.selectedAttempt != null) {
             // A terminal status must never override the durable beneficiary entitlement.
             assert (
-                record.selectedAttempt! != attempt
+                record.selectedAttempt != attempt
             ) throw UsdtDepositVaultErrors.BeneficiaryAlreadyAssigned;
             hasOtherSelectedHolding = true;
         }
     }
     assert (isFinalRefund || hasOtherSelectedHolding) throw UsdtDepositVaultErrors.DecisionPending;
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         max(0, contract.getOriginalBalance() - msgValue),
         RESERVE_MODE_EXACT_AMOUNT,
     );
@@ -380,10 +380,10 @@ fun prepareUsdtPayment(
     assert (
         msgValue >= USDT_DEPOSIT_PREPARE_VALUE * vaultCount + USDT_DEPOSIT_PREPARATION_OVERHEAD
     ) throw UsdtDepositVaultErrors.NotEnoughValue;
-    reserveToncoinsOnBalance(
+    reserveGramsOnBalance(
         preMessageBalanceToReserve == null
             ? max(0, contract.getOriginalBalance() - msgValue)
-            : preMessageBalanceToReserve!,
+            : preMessageBalanceToReserve,
         RESERVE_MODE_EXACT_AMOUNT,
     );
 
@@ -425,7 +425,7 @@ fun prepareUsdtPayment(
     // Для maker-funded escrow готовность проверяется после оплаты исходящих vault actions.
     val depositEscrowReserve = createMessage({
         bounce: false,
-        value: ton("0"),
+        value: grams("0"),
         dest: contract.getAddress(),
         body: DepositEscrowReserve { queryId: preparation.nonce },
     });

@@ -1,5 +1,5 @@
 // NFT-контракты произвольны, поэтому на каждый transfer закладывается консервативный forward.
-const NFT_TRANSFER_VALUE = ton("0.05")
+const NFT_TRANSFER_VALUE = grams("0.05")
 
 const MAX_AUTOMATIC_NFT_DELIVERY_ATTEMPTS = 1
 
