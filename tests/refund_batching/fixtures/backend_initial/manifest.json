@@ -1,0 +1,16 @@
+{
+  "exact-data.boc": {
+    "data_cell_hash": "0db8431c716812bdc8b93c4452299b8c115cb5dbc9fbb4b5516bcaa9b36c786f",
+    "boc_sha256": "936eaa3adedaa4c6cffef1bf3c716b2e558737ccdb4efe0e39335de3738112ab",
+    "state_init_hash": "b63c855ba525c3691b3321ad76379a6786b9e3a35b2808a07fee4b9cda1f0a8d",
+    "code_hash": "aca30970a9fad92c273268a80a606dacb49f4e003760b2b9476278cfbbd25b6a",
+    "offer_id": 12345
+  },
+  "certified-data.boc": {
+    "data_cell_hash": "46e5ffedc79e1f2f0f7d4778122d8ab32af88220b9b7833fd93d465f10188b62",
+    "boc_sha256": "ad8fd6e4891e0f07b29cd97bd96833db3b5fc1d45d40b70f452e24eed0ef940f",
+    "state_init_hash": "295de7899b90475a391c42ae6176a6096e24bf14980a75fd763bb061d3a9a018",
+    "code_hash": "8b621f60dc8934150d488f4b0def30b8731039e61f9cbb394d55df3652c2abc7",
+    "offer_id": 12345
+  }
+}

@@ -17,6 +17,7 @@ fun NftDeliveries.deliverDepositedTo(mutate self, items: ItemDeposits, newOwner:
     val encoded = NftDelivery {
         recipient: newOwner,
         queryId,
+        automaticReserve: requiredNftRetryValue(),
     }
     .toCell()
     .beginParse();
@@ -50,6 +51,7 @@ fun NftDeliveries.returnEachToItsDepositor(
         recipient: contract.getAddress(),
         comment,
         queryId,
+        automaticReserve: requiredNftRetryValue(),
     }
     .toCell()
     .beginParse();
@@ -86,6 +88,8 @@ fun NftDeliveries.deliver(
         comment,
         nftForwardPayload(comment),
         blockchain.logicalTime() as uint64,
+        null,
+        requiredNftRetryValue(),
     );
 }
 
@@ -98,6 +102,7 @@ fun NftDeliveries.deliverWithPayload(
     payload: slice,
     queryId: uint64,
     sponsor: address? = null,
+    automaticReserve: coins = 0,
 ) {
     self.set(
         nft,
@@ -106,6 +111,7 @@ fun NftDeliveries.deliverWithPayload(
             queryId,
             sponsor,
             comment,
+            automaticReserve,
         },
     );
     sendNftWithPayload(nft, recipient, contract.getAddress(), payload, queryId);

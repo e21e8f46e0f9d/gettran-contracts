@@ -22,6 +22,7 @@ import "@contracts/common/offer/deposits"
 import "@contracts/common/offer/enums"
 import "@contracts/common/offer/execution_commitment"
 import "@contracts/common/offer/messages"
+import "@contracts/common/offer/surplus"
 import "@contracts/common/offer/terms"
 import "@contracts/common/offer/wallets"
 import "@contracts/common/ton/transfers"
@@ -37,7 +38,7 @@ import "storage"
 
 contract OfferEscrow {
     author: "Gettran"
-    version: "1.0.0"
+    version: "2.0.0"
     description: "Bilateral Offer escrow: concrete NFT sets and the money leg are committed by StateInit; no certificate can alter settlement"
     storage: OfferEscrowStorage
     incomingMessages: AllowedMessage
@@ -150,6 +151,7 @@ type AllowedMessage =
     | ResumeSettlement
     | Cancel
     | DepositEscrowReserve
+    | ClaimEscrowSurplus
     | DepositSideFee
     | ConfirmNftDelivery
     | RetryNftDelivery
@@ -371,6 +373,16 @@ fun onInternalMessage(in: InMessage) {
                 in.valueCoins,
                 msg.offerExecutionNumber,
                 max(0, in.valueCoins - OfferEscrowStorage.load().terms.load().makerTonFee),
+            );
+        }
+        ClaimEscrowSurplus => {
+            val storage = OfferEscrowStorage.load();
+            assert (storage.isClosed()) throw OfferEscrowErrors.NotClosed;
+            claimEscrowSurplus(
+                in.senderAddress,
+                in.valueCoins,
+                storage.reserveChangeRecipient(),
+                closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
             );
         }
         DepositEscrowReserve => {
@@ -717,10 +729,7 @@ fun finishSingleNftTonPurchase(
             MARKETPLACE_FEE_COMMENT,
         );
     }
-    returnChange(
-        storage.reserveChangeRecipient(),
-        MIN_TONS_FOR_STORAGE + storage.automaticRecoveryBudget,
-    );
+    returnRecoveryChange(storage);
 }
 
 fun openIfMakerReady(mutate storage: OfferEscrowStorage): bool {
@@ -1111,10 +1120,7 @@ fun finishSingleNftTonSale(
         val config = lazy terms.config.load();
         sendCoins(config.feeTreasury, payment.marketplaceFee, MARKETPLACE_FEE_COMMENT);
     }
-    returnChange(
-        storage.reserveChangeRecipient(),
-        MIN_TONS_FOR_STORAGE + storage.automaticRecoveryBudget,
-    );
+    returnRecoveryChange(storage);
 }
 
 fun finishWholeTonPayment(
@@ -1145,10 +1151,7 @@ fun finishWholeTonPayment(
         payment.amount - payment.marketplaceFee,
         SETTLEMENT_PAYMENT_COMMENT,
     );
-    returnChange(
-        storage.reserveChangeRecipient(),
-        MIN_TONS_FOR_STORAGE + storage.automaticRecoveryBudget,
-    );
+    returnRecoveryChange(storage);
 }
 
 fun applyUsdtDepositNotification(wallet: address, notification: JettonTransferNotification) {
@@ -1628,12 +1631,7 @@ fun finishSettlementTo(original: OfferEscrowStorage, takerSettlementWallet: addr
             MARKETPLACE_FEE_COMMENT,
         );
     }
-    returnChange(
-        storage.reserveChangeRecipient(),
-        paymentCell != null && paymentCell.load().asset == PaymentAsset.Usdt
-            ? usdtRecoveryStorageReserve() + storage.automaticRecoveryBudget
-            : MIN_TONS_FOR_STORAGE + storage.automaticRecoveryBudget,
-    );
+    returnRecoveryChange(storage);
     commitContractDataAndActions();
 }
 
@@ -1960,10 +1958,7 @@ fun closeOffer(original: OfferEscrowStorage, closedAs: OfferEscrowStatus) {
         );
     }
     refundNativeContributions(nativeRefunds, reason);
-    returnChange(
-        storage.reserveChangeRecipient(),
-        closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
-    );
+    returnRecoveryChange(storage);
 }
 
 fun refundContributions(
@@ -2095,7 +2090,7 @@ fun OfferEscrowStorage.assertMayExternallyRetryNftDelivery(
     ) throw OfferEscrowErrors.AutomaticRecoveryUnavailable;
     val retryBudget = requiredNftRetryValue();
     assert (
-        self.automaticRecoveryBudget >= retryBudget &&
+        pending.automaticReserve >= retryBudget && self.automaticRecoveryBudget >= retryBudget &&
         contract.getOriginalBalance() >= self.automaticRecoveryBudget + self.externalPaidTonFees()
     ) throw OfferEscrowErrors.AutomaticRecoveryUnavailable;
 }
@@ -2109,7 +2104,7 @@ fun retryNftDeliveryFromReserve(original: OfferEscrowStorage, nft: address) {
     );
     var deposits = storage.deposits.load();
     var delivery = deposits.nftDeliveries.get(nft).loadValue();
-    storage.automaticRecoveryBudget -= retryBudget;
+    delivery.consumeAutomaticReserve(mutate storage.automaticRecoveryBudget, retryBudget);
     delivery.queryId = blockchain.logicalTime() as uint64;
     delivery.sponsor = null;
     delivery.hasReceipt = false;
@@ -2144,30 +2139,34 @@ fun finishNftDeliveryFence(nft: address, queryId: uint64) {
         return;
     }
     var pending = refund.loadValue();
-    val releaseUnusedAutomaticBudget = pending.hasReceipt && pending.sponsor == null;
     if (pending.hasReceipt) {
+        pending.releaseAutomaticReserve(mutate storage.automaticRecoveryBudget);
         deposits.nftDeliveries.delete(nft);
-        // Автоматический retry уже списал budget до отправки: повторно его не уменьшаем.
-        if (releaseUnusedAutomaticBudget && pending.automaticAttempts == 0) {
-            storage.automaticRecoveryBudget = max(
-                0,
-                storage.automaticRecoveryBudget - requiredNftRetryValue(),
-            );
-        }
     } else {
         pending.queryId = 0;
         deposits.nftDeliveries.set(nft, pending);
     }
     storage.deposits = deposits.toCell();
     storage.save();
-    if (releaseUnusedAutomaticBudget) {
-        returnChange(
-            storage.reserveChangeRecipient(),
-            closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
-        );
-    } else if (pending.sponsor != null) {
+    if (pending.sponsor != null) {
+        // Чужой caller-funded retry получает только остаток своего входящего сообщения.
         refundTon(pending.sponsor, GAS_REFUND_COMMENT);
+        if (pending.hasReceipt && storage.isClosed() && deposits.nftDeliveries.isEmpty()) {
+            returnRecoveryChange(storage);
+        }
+    } else if (pending.hasReceipt) {
+        returnRecoveryChange(storage);
     }
+}
+
+fun returnRecoveryChange(storage: OfferEscrowStorage) {
+    if (!mayReturnEscrowChange(storage.isClosed(), storage.deposits.load().nftDeliveries)) {
+        return;
+    }
+    returnChange(
+        storage.reserveChangeRecipient(),
+        closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
+    );
 }
 
 fun closedEscrowStorageReserve(storage: OfferEscrowStorage): coins {
@@ -2196,10 +2195,7 @@ fun failNftDelivery(nft: address, queryId: uint64) {
     } else if (failed.automaticAttempts > 0) {
         // Bounce вернул неистраченный transfer value. Остальным NFT сохраняем их retry budget,
         // а остаток завершённой автоматической попытки возвращаем плательщику резерва.
-        returnChange(
-            storage.reserveChangeRecipient(),
-            closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
-        );
+        returnRecoveryChange(storage);
     }
 }
 
@@ -2212,10 +2208,15 @@ fun confirmNftDeliveryReceipt(sender: address, nft: address) {
     assert (
         refund.loadValue().status == NftDeliveryStatus.Failed
     ) throw OfferEscrowErrors.NftDeliveryPending;
+    var completed = refund.loadValue();
+    completed.releaseAutomaticReserve(mutate storage.automaticRecoveryBudget);
     deposits.nftDeliveries.delete(nft);
     storage.deposits = deposits.toCell();
     storage.save();
     refundTon(sender, GAS_REFUND_COMMENT);
+    if (storage.isClosed() && deposits.nftDeliveries.isEmpty()) {
+        returnRecoveryChange(storage);
+    }
 }
 
 fun recoverUnexpectedNft(
@@ -2444,4 +2445,18 @@ fun assertExternalTransitionReserve(
 @noinline
 fun closeExternallyVerifiedOffer(closedAs: OfferEscrowStatus) {
     closeOffer(OfferEscrowStorage.load(), closedAs);
+}
+
+// minimumMessageValue — возвращаемое авансирование газа, а не фиксированная комиссия.
+get fun surplus_claim(): EscrowSurplusClaimInfo {
+    val storage = OfferEscrowStorage.load();
+    return {
+        beneficiary: storage.reserveChangeRecipient(),
+        available: storage.isClosed()
+            ? claimableEscrowSurplus(
+                closedEscrowStorageReserve(storage) + storage.automaticRecoveryBudget,
+            )
+            : 0,
+        minimumMessageValue: requiredEscrowSurplusClaimValue(),
+    };
 }

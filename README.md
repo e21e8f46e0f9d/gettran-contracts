@@ -25,3 +25,12 @@ no automatic timeout refund or key rotation.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Internal escrow code profile 2 candidate
+
+The public product release remains version 1.0.0. Internal code profile 2 is a distinct
+immutable ABI/storage identity, not a product-version announcement.
+
+See [refund-batching-v2.md](docs/refund-batching-v2.md) for the single final change refund,
+caller-funded surplus claim, version boundary and local checks. This candidate is not a
+production activation and does not upgrade existing immutable v1 escrows.

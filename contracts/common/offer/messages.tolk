@@ -22,3 +22,8 @@ struct (0x46464545) DepositSideFee {
     queryId: uint64
     offerExecutionNumber: uint32
 }
+
+// Получателя не передают: остаток получает только зафиксированный плательщик резерва.
+struct (0x434c5350) ClaimEscrowSurplus {
+    queryId: uint64
+}
