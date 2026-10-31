@@ -767,7 +767,6 @@ fun termsAreValid(storage: CertifiedOfferEscrowStorage): bool {
         fixedProgress.isDisjoint &&
         fixedProgress.depositedCount == 0 &&
         fixedProgress.promisedCount <= terms.takerItemCount &&
-        (policy.makerDelivery != null || fixedProgress.promisedCount < terms.takerItemCount) &&
         makerHasConsideration &&
         takerHasConsideration &&
         paymentTermsAreValid(
