@@ -8,7 +8,7 @@ import "fixture"
 
 // All-onchain sale legitimately needs the platform certificate for Telegram admission.
 // An absent provider/criterion does not replace immutable certificate/signature/party guards.
-fun assertCertifiedAdmissionRejects(wrongSignature: bool) {
+fun assertCertifiedAdmissionRejects(rejection: int) {
     testing.setChecksigIgnore(false);
     val f = fixture(
         true,
@@ -40,17 +40,27 @@ fun assertCertifiedAdmissionRejects(wrongSignature: bool) {
             takerTonFee: 0,
         }.toCell(),
     }.toCell();
+    var rejectedCertificate = CertifiedExecutionCertificate.fromCell(certificate);
+    if (rejection == 2) {
+        rejectedCertificate.validUntil = testing.getNow() - 1;
+    }
+    if (rejection == 3) {
+        var details = rejectedCertificate.details.load();
+        details.contributorWallets = singleOfferWallet(f.maker);
+        rejectedCertificate.details = details.toCell();
+    }
+    val rejectedSigned = rejectedCertificate.toCell();
     val before = f.state().hash();
     val rejected = f.receive(
-        wrongSignature ? f.beneficiary : f.stranger,
+        rejection == 1 ? f.stranger : f.beneficiary,
         BuyCertifiedOffer {
             queryId: 1,
-            paymentAmount: grams("1"),
+            paymentAmount: rejection == 4 ? grams("0.9") : grams("1"),
             signature: crypto.sign(
-                wrongSignature ? stranger.privateKey : certifier.privateKey,
-                certificate,
+                rejection == 0 ? stranger.privateKey : certifier.privateKey,
+                rejectedSigned,
             ) as bits512,
-            signed: certificate,
+            signed: rejectedSigned,
         }.toCell(),
         grams("1.2"),
     );
@@ -70,9 +80,21 @@ fun assertCertifiedAdmissionRejects(wrongSignature: bool) {
 }
 
 get fun `test all-onchain certified admission still rejects invalid certifier signature`() {
-    assertCertifiedAdmissionRejects(true);
+    assertCertifiedAdmissionRejects(0);
 }
 
 get fun `test all-onchain certified admission still rejects unauthorized payer`() {
-    assertCertifiedAdmissionRejects(false);
+    assertCertifiedAdmissionRejects(1);
+}
+
+get fun `test all-onchain certified admission still rejects expired certificate`() {
+    assertCertifiedAdmissionRejects(2);
+}
+
+get fun `test all-onchain certified admission still rejects maker as taker party`() {
+    assertCertifiedAdmissionRejects(3);
+}
+
+get fun `test all-onchain certified admission still rejects insufficient payment`() {
+    assertCertifiedAdmissionRejects(4);
 }

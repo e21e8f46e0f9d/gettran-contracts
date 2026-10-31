@@ -9,8 +9,8 @@
   "certified-data.boc": {
     "data_cell_hash": "46e5ffedc79e1f2f0f7d4778122d8ab32af88220b9b7833fd93d465f10188b62",
     "boc_sha256": "ad8fd6e4891e0f07b29cd97bd96833db3b5fc1d45d40b70f452e24eed0ef940f",
-    "state_init_hash": "84b1d959fa1993abbceca2f77b1256cdda1fc2fbe78b4a6d6f745bb4604a43a2",
-    "code_hash": "119f66227499725b08d144dff8ae5ae9abbeb9f29185902c2e01906e95822d71",
+    "state_init_hash": "9fa8dba91bbe6cc5047f92b36069b5aa1dd24a9376a549ca82bdc41d25ddfbae",
+    "code_hash": "759193b54b7a1a2bf43eb037d2e4b91c614ed2f3d75c9c0bb03a2d1483bc86a7",
     "offer_id": 12345
   }
 }

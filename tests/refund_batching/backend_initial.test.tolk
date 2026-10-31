@@ -21,7 +21,7 @@ fun assertBackendInitial(certified: bool) {
     val expected = address.fromWorkchainAndHash(
         0,
         certified
-            ? 0x84b1d959fa1993abbceca2f77b1256cdda1fc2fbe78b4a6d6f745bb4604a43a2
+            ? 0x9fa8dba91bbe6cc5047f92b36069b5aa1dd24a9376a549ca82bdc41d25ddfbae
             : 0xb63c855ba525c3691b3321ad76379a6786b9e3a35b2808a07fee4b9cda1f0a8d,
     );
     assert (init.calculateAddress() == expected) throw 3901;

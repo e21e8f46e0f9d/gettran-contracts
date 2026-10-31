@@ -730,11 +730,13 @@ fun inspectDisjointItems(
     };
 }
 
-fun termsAreValid(storage: CertifiedOfferEscrowStorage): bool {
+fun termsAreValid(
+    storage: CertifiedOfferEscrowStorage,
+    makerProgress: BoundedDepositProgress,
+): bool {
     val terms = lazy storage.terms.load();
     val parties = lazy terms.parties.load();
     val policy = lazy terms.policy.load();
-    val makerProgress = storage.makerItems.progressWithin(MAX_CERTIFIED_OFFER_ITEMS);
     val fixedProgress = inspectDisjointItems(
         policy.fixedTakerItems,
         storage.makerItems,
@@ -994,7 +996,8 @@ fun applyItemDeposit(item: address, depositor: address, forwardPayload: slice) {
         val parties = lazy terms.parties.load();
         val slot = storage.makerItems.get(item);
         if (
-            blockchain.now() >= storage.expiresAt || !termsAreValid(storage) ||
+            blockchain.now() >= storage.expiresAt ||
+            !termsAreValid(storage, storage.makerItems.progressWithin(MAX_CERTIFIED_OFFER_ITEMS)) ||
             !parties.makerWallets.exists(depositor) ||
             !slot.isFound ||
             !slot.loadValue().acceptsDepositor(depositor)
@@ -1007,7 +1010,12 @@ fun applyItemDeposit(item: address, depositor: address, forwardPayload: slice) {
         makerDeposit.depositor = depositor;
         storage.makerItems.set(item, makerDeposit);
         storage.save();
-        openIfMakerReady(mutate storage);
+        // Изменился только depositor: immutable keys/refundRecipients/terms уже проверены выше.
+        // Свежий post-mutation progress нужен для isComplete, прежний snapshot здесь недопустим.
+        openIfMakerReadyWithValidatedTerms(
+            mutate storage,
+            storage.makerItems.progressWithin(MAX_CERTIFIED_OFFER_ITEMS),
+        );
         return;
     }
 
@@ -1124,9 +1132,22 @@ fun openIfMakerReady(mutate storage: CertifiedOfferEscrowStorage) {
     if (storage.status != CertifiedOfferEscrowStatus.CollectingMaker) {
         return;
     }
+    val makerProgress = storage.makerItems.progressWithin(MAX_CERTIFIED_OFFER_ITEMS);
+    if (!termsAreValid(storage, makerProgress)) {
+        return;
+    }
+    openIfMakerReadyWithValidatedTerms(mutate storage, makerProgress);
+}
+
+fun openIfMakerReadyWithValidatedTerms(
+    mutate storage: CertifiedOfferEscrowStorage,
+    makerProgress: BoundedDepositProgress,
+) {
+    if (storage.status != CertifiedOfferEscrowStatus.CollectingMaker) {
+        return;
+    }
 
     val terms = lazy storage.terms.load();
-    val makerProgress = storage.makerItems.progressWithin(MAX_CERTIFIED_OFFER_ITEMS);
     val paymentCell = terms.payment;
     var makerPaymentReady = true;
     if (paymentCell != null) {
@@ -1136,9 +1157,7 @@ fun openIfMakerReady(mutate storage: CertifiedOfferEscrowStorage) {
     }
 
     if (
-        blockchain.now() < storage.expiresAt && termsAreValid(storage) &&
-        makerProgress.isComplete &&
-        makerPaymentReady &&
+        blockchain.now() < storage.expiresAt && makerProgress.isComplete && makerPaymentReady &&
         (terms.makerTonFee == 0 || storage.deposits.load().makerFeePayer != null) &&
         contract.getOriginalBalance() >= storage.requiredSettlementBalance(false)
     ) {
